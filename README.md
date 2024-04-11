@@ -24,8 +24,7 @@ The output **without extension**, the script already adds the necessary output t
 Sumstat_Converter selects the necessary and essential columns from the summary statistics for PRS, ordering and renaming them headers to be able to use the summary statistics in comparative studies. It also recreates the SNP column by concatenating the other columns and, through a meta-analysis using [plink1.9](https://www.cog-genomics.org/plink/) to generate a .prob file with problematic SNPs, corrects SNPs that do not match those in your base file. In this way, it solves SNPs with strand changes, alleles swapped, and with these two options together.
 ## Contributing
 
-Pull requests are welcome. For major changes, please open an issue first
-to discuss what you would like to change.
+Please feel free to submit pull requests, report issues, or suggest new ideas. I'm open to helping with whatever is needed.
 ## Citation
 
 If you find this project useful for your work, please consider citing it using the following BibTeX entry:
