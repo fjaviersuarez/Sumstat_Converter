@@ -1,6 +1,45 @@
 #!/usr/bin/env Rscript
 
 
+# Unicamente para el help y sus colores
+color_text <- function(text, color) {
+  colors <- c(
+    "rojo" = "\033[31m",
+    "rosa" = "\033[95m",
+    "azul" = "\033[34m",
+    "reset" = "\033[0m"
+  )
+  
+  if (color %in% names(colors)) {
+    cat(paste0(colors[color], text, colors["reset"]))
+  } else {
+    cat(text)
+  }
+}
+
+mostrar_ayuda_color <- function() {
+    cat("\n")
+    nombre <- "
+╔═╗┬ ┬┌┬┐┌─┐┌┬┐┌─┐┌┬┐   ┌─┐┌─┐┌┐┌┬  ┬┌─┐┬─┐┌┬┐┌─┐┬─┐
+╚═╗│ ││││└─┐ │ ├─┤ │    │  │ ││││└┐┌┘├┤ ├┬┘ │ ├┤ ├┬┘
+╚═╝└─┘┴ ┴└─┘ ┴ ┴ ┴ ┴────└─┘└─┘┘└┘ └┘ └─┘┴└─ ┴ └─┘┴└─
+"
+
+    color_text(nombre, "rojo")
+
+    color_text("\n\n * Propósito:\n", "azul")
+    cat("convertir datos de GWAS Catalog al mismo formato que los .assoc.logiscit de NOA para PRS\n")
+
+    color_text(" * Sintaxis:\n", "azul") 
+    cat("Rscript Sumstat_Converter.r --base NOA.assoc.logistic --target ENFERMEDAD.txt --out SALIDA\n")
+    color_text(" * Argumentos:\n", "azul") 
+
+    cat("--base corresponde al fichero .assoc.logistic de NOA que va a ser usado por el script como base para reescribir los archivos\n")
+    cat("--target corresponde al fichero de GWAS Catalog ya descomprimido (con gunzip)\n")
+    cat("--out corresponde a la salida SIN EXTENSIÓN, el script ya le coloca la salida necesaria a cada archivo (.log, .prob y .meta para los resultados del meta análisis, y .txt para el archivo final de salida generado con los SNP y fichero, ambos corregidos)\n\n")
+    color_text("Dudas, sugerencias o errores, por favor --> fjaviersuarez@correo.ugr.es\n", "rosa") 
+}
+
 
 
 # Este comando es para coger argumentos del comando
@@ -21,8 +60,10 @@ for (i in 1:length(args)){
     out <- args[i+1]
     }else if(args[i] == "--target" && !is.null(args[i+1])){
     target <- args[i+1]
-    }else if(args[i] == "--h" && !is.null(args[i+1])){
-    stop(" - SUMSTAT_CONVERTER - \n * Propósito: convertir datos de GWAS Catalog al mismo formato que los .assoc.logiscit de NOA para PRS\n* Sintaxis: Rscript Sumstat_Converter.r --base NOA.assoc.logistic --target ENFERMEDAD.txt --out SALIDA\n** --base corresponde al fichero .assoc.logistic de NOA que va a ser usado por el script como base para reescribir los archivos\n** --target corresponde al fichero de GWAS Catalog ya descomprimido (con gunzip)\n** --out corresponde a la salida SIN EXTENSIÓN, el script ya le coloca la salida necesaria a cada archivo (.log, .prob y .meta para los resultados del meta analisis, y .txt para el archivo final de salida generado con los SNP y fichero, ambos corregido)")
+    }else if(args[i] == "--h" || args[i] == "--help"){
+    mostrar_ayuda_color()    
+    q(save = "no")
+
     }
 }
 
@@ -36,7 +77,6 @@ if(is.null(out)){
 if(is.null(target)){
     stop("Advertencia: No se ha proporcionado el archivo target/enfermedad a transformar/adaptar")
 }
-
 
 
 
