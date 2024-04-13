@@ -5,7 +5,7 @@ Sumstat_Converter is a R script to convert harmonized GWAS summary statistics in
 ## Usage
 
 ```bash
-Rscript Sumstat_Converter --base Base_File.assoc.logistic --target 
+Rscript Sumstat_Converter.r --base Base_File.assoc.logistic --target 
 Summary_Statistics.txt --out Adapted_Summary_Statistics
 ```
 ### --base: 
