@@ -28,7 +28,7 @@ mostrar_ayuda_color <- function() {
     color_text(nombre, "rojo")
 
     color_text("\n\n * Propósito:\n", "azul")
-    cat("convertir datos de GWAS Catalog al mismo formato que los .assoc.logiscit de NOA para PRS\n")
+    cat("convertir datos de GWAS Catalog al mismo formato que los .assoc.logistic de NOA para PRS\n")
 
     color_text(" * Sintaxis:\n", "azul") 
     cat("Rscript Sumstat_Converter.r --base NOA.assoc.logistic --target ENFERMEDAD.txt --out SALIDA\n")
