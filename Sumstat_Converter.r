@@ -28,15 +28,15 @@ mostrar_ayuda_color <- function() {
     color_text(nombre, "rojo")
 
     color_text("\n\n * Propósito:\n", "azul")
-    cat("convertir datos de GWAS Catalog al mismo formato que los .assoc.logistic de NOA para PRS\n")
+    cat("Convertir datos de cualquier enfermedad de GWAS Catalog al mismo formato que los .assoc.logistic de la afeccion de testeo para PRS\n")
 
     color_text(" * Sintaxis:\n", "azul") 
-    cat("Rscript Sumstat_Converter.r --base NOA.assoc.logistic --target ENFERMEDAD.txt --out SALIDA\n")
+    cat("Rscript Sumstat_Converter.r --base ENFERMEDAD.assoc.logistic --target ENFERMEDAD_GWASCATALOG.txt --out SALIDA\n")
     color_text(" * Argumentos:\n", "azul") 
 
-    cat("--base corresponde al fichero .assoc.logistic de NOA que va a ser usado por el script como base para reescribir los archivos\n")
-    cat("--target corresponde al fichero de GWAS Catalog ya descomprimido (con gunzip)\n")
-    cat("--out corresponde a la salida SIN EXTENSIÓN, el script ya le coloca la salida necesaria a cada archivo (.log, .prob y .meta para los resultados del meta análisis, y .txt para el archivo final de salida generado con los SNP y fichero, ambos corregidos)\n\n")
+    cat("--base: corresponde al fichero .assoc.logistic de la enfermedad que va a ser usado por el script como base para reescribir los archivos\n")
+    cat("--target: corresponde al fichero de GWAS Catalog ya descomprimido (con gunzip)\n")
+    cat("--out: corresponde a la salida SIN EXTENSIÓN, el script ya le coloca la salida necesaria a cada archivo (.log, .prob y .meta para los resultados del meta análisis, y .txt para el archivo final de salida generado con los SNP y fichero, ambos corregidos)\n\n")
     color_text("Dudas, sugerencias o errores, por favor --> fjaviersuarez@correo.ugr.es\n", "rosa") 
 }
 
@@ -157,7 +157,6 @@ contador <- 0
     # Le pone header al .prob para poder buscar en función de ellos
     colnames(datosprob)<-c("archivo", "SNP", "error")
 
-
     for(snp in datosprob$SNP){
         # Partes:               CHR : BP : A2 : A1
         partes_prob <- unlist(strsplit(as.character(snp), ":"))
@@ -165,12 +164,10 @@ contador <- 0
         partes_snp <- unlist(strsplit(as.character(datos[indice,"SNP"]), ":"))
         indice_prob <- which(snp==datosprob$SNP)
 
-        # LOS ALELOS ESTÁN AL REVÉS: AG -> GA, TC -> CT
         if (length(indice) > 0) {
 
             # Si el snp está bien escrito en todos lados y aún así está aquí + su código de error es allele_mismatch
             if((snp%in%datosbase$SNP)&&(snp%in%datos$SNP)&&(snp%in%datosprob$SNP)&&((datosprob[indice_prob,"error"]=="ALLELE_MISMATCH"))){
-
                 # A2 se almacena en temp
                 temp <- datos[indice,"A2"]
                 # A2 se sobreescribe con A1
@@ -182,58 +179,11 @@ contador <- 0
                     OR <- 1/OR
                 } 
 
-            } # SI LOS ALELOS ESTÁN INVERTIDOS: AG -> GA, TG -> GT
-            else if((partes_snp[3]==partes_prob[4])&(partes_snp[4]==partes_prob[3])){ # En resumen, si al separar el SNP en partes coinciden el alelo 2 con el 1 y el 1 con el 2, entre el snp prob y el snp enf
-            # Se sobreescriben los alelos A1 y A2 intercambiandose
-            datos[indice,"A1"] <- partes_prob[4]
-            datos[indice,"A2"] <- partes_prob[3]
-            # Se concatenan para regenerar el SNP
-            datos[indice,"SNP"] <- paste("chr",datos[indice,"CHR"], ":", datos[indice,"BP"], ":",datos[indice,"A2"],":",datos[indice,"A1"], sep = "")
-            # Comprueba que la OR exista porque 1/NA devuelve error matemático y cae el problema, así que lo evitamos
-            if(!is.na(datos[indice,"OR"])){
-                    OR<-as.numeric(datos[indice,"OR"])
-                    OR <- 1/OR
-                }
-
-
-
             } 
-            # LOS ALELOS ESTÁN EN LA OTRA HEBRA: AG -> TC, TG -> AC
-            else if( ((partes_snp[3]=="A"&&partes_prob[3]=="T")| # En resumen, si al separar el SNP en partes, el snp prob tiene el A1 = A y el A1 de la enf tiene T, es decir, busca los complementarios
-            (partes_snp[3]=="T"&&partes_prob[3]=="A")|
-            (partes_snp[3]=="G"&&partes_prob[3]=="C")|
-            (partes_snp[3]=="C"&&partes_prob[3]=="G")) &&
-            ( (partes_snp[4]=="C"&&partes_prob[4]=="G")|
-            (partes_snp[4]=="G"&&partes_prob[4]=="C")|
-            (partes_snp[4]=="A"&&partes_prob[4]=="T")|
-            (partes_snp[4]=="T"&&partes_prob[4]=="A")) ){
-                datos[indice,"A1"] <- partes_prob[4]
-                datos[indice,"A2"] <- partes_prob[3]
-                datos[indice,"SNP"] <- paste("chr",datos[indice,"CHR"], ":", datos[indice,"BP"], ":",datos[indice,"A2"],":",datos[indice,"A1"], sep = "")
-
-
-            }
-            # LOS ALELOS ESTÁN AL REVÉS Y ADEMÁS EN LA OTRA HEBRA: AG -> CT, TG -> CA
-            else if ( ((partes_snp[3]=="T"&partes_prob[4]=="A")| # En resumen, si al separar el SNP en partes, el snp prob tiene de A1 = A, y de A2 = T, y además el A2 en prob = C y en enf es = G, es decir, busca los complementarios del A1 en el A2 del otro y viceversa, para encontrar cambios de hebra y que además estén intercambiados
-            (partes_snp[3]=="A"&partes_prob[4]=="T")|
-            (partes_snp[3]=="C"&partes_prob[4]=="G")|
-            (partes_snp[3]=="G"&partes_prob[4]=="C"))&
-            ( (partes_snp[4]=="A"&partes_prob[3]=="T")|
-            (partes_snp[4]=="T"&partes_prob[3]=="A")|
-            (partes_snp[4]=="C"&partes_prob[3]=="G")|
-            (partes_snp[4]=="G"&partes_prob[3]=="C")) ) {
-                datos[indice,"A1"] <- partes_prob[4]
-                datos[indice,"A2"] <- partes_prob[3]
-                datos[indice,"SNP"] <- paste("chr",datos[indice,"CHR"], ":", datos[indice,"BP"], ":",datos[indice,"A2"],":",datos[indice,"A1"], sep = "")
-                if(!is.na(datos[indice,"OR"])){
-                    OR<-as.numeric(datos[indice,"OR"])
-                    OR <- 1/OR
-                }
                 
-        }
+        
         }
             contador<-contador+1 # A cada vuelta de bucle = cada linea en prob, se suma 1
-            # Porcentaje = (Linea por la que va / numero de lineas totales)*100
             porcentaje <- (contador/nrow(datosprob))*100
 
             cat("Porcentaje completado: ", sprintf("%.2f", porcentaje), "% . Líneas procesadas: ",contador," / ", nrow(datosprob),"\r")
@@ -244,22 +194,6 @@ contador <- 0
             
         write.table(datos, file = paste0(out, ".txt"), sep = "\t", quote = FALSE, row.names = FALSE)
 
-}
-
-
-
-mover <- function(datos, out){
-    # Lectura de datos desde el archivo
-    # El vector de las subopciones se separa
-    columnas_seleccionadas <- unlist(strsplit("SNP CHR BP A1 A2 OR P SE", " "))
-
-    # Se filtran todas las filas y las columnas seleccionadas
-    datos_filtrados <- datos[, columnas_seleccionadas, drop = FALSE]
-    # Se actualiza
-
-    write.table(datos_filtrados, file = paste0(out, ".txt"), sep = "\t", quote = FALSE, row.names = FALSE)
-
-    cat("Columnas editadas\n")
 }
 
 
