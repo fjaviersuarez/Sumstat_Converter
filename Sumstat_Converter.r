@@ -240,7 +240,7 @@ meta_analizar(base, out)
 datosprob <- read.table(paste0(out, ".prob"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, colClasses = "character")
 
 
-datosbase <- read.table(base, header = TRUE, sep = "\t", stringsAsFactors = FALSE, colClasses = "character")
+datosbase <- read.table(base, header = TRUE, sep = "", stringsAsFactors = FALSE, colClasses = "character", check.names=FALSE)
 
 datos <- read.table(paste0(out,".txt"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, colClasses = "character")
 
