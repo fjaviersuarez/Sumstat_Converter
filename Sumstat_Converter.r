@@ -197,7 +197,19 @@ contador <- 0
 }
 
 
+mover <- function(datos, out){
+    # Lectura de datos desde el archivo
+    # El vector de las subopciones se separa
+    columnas_seleccionadas <- unlist(strsplit("SNP CHR BP A1 A2 OR P SE", " "))
 
+    # Se filtran todas las filas y las columnas seleccionadas
+    datos_filtrados <- datos[, columnas_seleccionadas, drop = FALSE]
+    # Se actualiza
+
+    write.table(datos_filtrados, file = paste0(out, ".txt"), sep = "\t", quote = FALSE, row.names = FALSE)
+
+    cat("Columnas editadas\n")
+}
 
 
 ####
