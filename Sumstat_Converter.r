@@ -2,18 +2,18 @@
 
 
 # Unicamente para el help y sus colores
-color_text <- function(text, color) {
-  colors <- c(
+colorear <- function(texto, color) {
+  lista_colores <- c(
     "rojo" = "\033[31m",
     "rosa" = "\033[95m",
     "azul" = "\033[34m",
     "reset" = "\033[0m"
   )
   
-  if (color %in% names(colors)) {
-    cat(paste0(colors[color], text, colors["reset"]))
+  if (color %in% names(lista_colores)) {
+    cat(paste0(lista_colores[color], texto, lista_colores["reset"]))
   } else {
-    cat(text)
+    cat(texto)
   }
 }
     nombre <- "
@@ -21,22 +21,22 @@ color_text <- function(text, color) {
 ╚═╗│ ││││└─┐ │ ├─┤ │    │  │ ││││└┐┌┘├┤ ├┬┘ │ ├┤ ├┬┘
 ╚═╝└─┘┴ ┴└─┘ ┴ ┴ ┴ ┴────└─┘└─┘┘└┘ └┘ └─┘┴└─ ┴ └─┘┴└─
 "
-cHelp <- function() {
+help_color <- function() {
   cat("\n")
 
 
-  color_text(nombre, "rojo")
+  colorear(nombre, "rojo")
 
-  color_text("\n\n * Propósito:\n", "azul")
+  colorear("\n\n * Propósito:\n", "azul")
   cat("Convertir datos de cualquier enfermedad de GWAS Catalog al mismo formato que los .assoc.logistic de la afeccion de testeo para PRS\n")
-  color_text(" * Sintaxis:\n", "azul") 
+  colorear(" * Sintaxis:\n", "azul") 
   cat("Rscript Sumstat_Converter.r --base ENFERMEDAD.assoc.logistic --target ENFERMEDAD_GWASCATALOG.txt --out SALIDA\n")
-  color_text(" * Argumentos:\n", "azul") 
+  colorear(" * Argumentos:\n", "azul") 
 
   cat("--base: corresponde al fichero .assoc.logistic de la enfermedad que va a ser usado por el script como base para reescribir los archivos\n")
   cat("--target corresponde al fichero de GWAS Catalog ya descomprimido (con gunzip)\n")
   cat("--out corresponde a la salida SIN EXTENSIÓN, el script ya le coloca la salida necesaria a cada archivo (.log, .prob y .meta para los resultados del meta análisis, y .txt para el archivo final de salida generado con los SNP y fichero, ambos corregidos)\n\n")
-  color_text("Dudas, sugerencias o errores, por favor --> fjaviersuarez@correo.ugr.es\n", "rosa") 
+  colorear("Dudas, sugerencias o errores, por favor --> fjaviersuarez@correo.ugr.es\n", "rosa") 
 }
 
 
@@ -60,7 +60,7 @@ for (i in 1:length(args)){
     }else if(args[i] == "--target" && !is.null(args[i+1])){
     target <- args[i+1]
     }else if(args[i] == "--h" || args[i] == "--help"){
-    cHelp()    
+    help_color()    
     q(save = "no")
 
     }
@@ -68,7 +68,7 @@ for (i in 1:length(args)){
 
 # Comprobaciones
 if(is.null(base)){
-    stop("! Advertencia: No se ha proporcionado el archivo base (NOA) a usar de guía")
+    stop("! Advertencia: No se ha proporcionado el archivo base a usar de guía")
 }
 if(is.null(out)){
     stop("! Advertencia: No se ha proporcionado nombre para la salida")
@@ -83,7 +83,7 @@ if(is.null(target)){
 
 # Esta función es para seleccionar unicamente las columnas necesarias de todas las descargadas del GWAS Catalog
 editar <- function(datos, out){
-  color_text(nombre, "rojo")
+  colorear(nombre, "rojo")
     # Lectura de datos desde el archivo
     # El vector de las subopciones se separa
     columnas_seleccionadas <- unlist(strsplit("hm_chrom hm_variant_id hm_pos hm_effect_allele hm_odds_ratio standard_error p_value hm_other_allele", " "))
@@ -152,45 +152,43 @@ limpiar <- function(datos, out) {
 }
 
 
-# Para generar el archivo .prob que se va a utilizar después
 meta_analizar <- function(base, out){
-    system(paste("plink1.9 --meta-analysis", paste0(out,".txt"),base, "--out", out))
+    system(paste("plink1.9 --meta-analysis", paste0(out,".txt"),base, "--out", out)) # System permite que el programa "escriba" por pantalla y si le damos la misma sintaxis que para plink1.9 o cualquier otro script, va a funcionar igual. Véase EasyPRS.r que funciona igual para otro ejemplo
     cat("► Meta-analisis finalizado\n")
 }
 
-# Esta función es para arreglar los SNP generados anteriormente para abordar los cambios de hebra, los alelos intercambiados, los allele mismatch, y cualquier problema
-
 
 arreglar <- function(datos, datosprob, out, datosbase) {
-  # Le pone header al .prob para poder buscar en función de ellos
+  # Como datosprob no tiene header se le añade
   colnames(datosprob) <- c("archivo", "SNP", "error")
-
-  # Filtrar datosprob solo para los SNPs presentes en datos y datosbase
-  snps_comunes <- intersect(datos$SNP, intersect(datosprob$SNP, datosbase$SNP))
-  datosprob_filtrados <- datosprob[datosprob$SNP %in% snps_comunes, ]
-
-  # Actualizar A1 y A2 según error y datosprob
-  match_indices <- match(datos$SNP, datosprob_filtrados$SNP)
-  temporal <- datos$A1[!is.na(match_indices) & datosprob_filtrados$error[match_indices] == "ALLELE_MISMATCH"]
-
-  datos$A1[!is.na(match_indices) & datosprob_filtrados$error[match_indices] == "ALLELE_MISMATCH"] <- datos$A2[!is.na(match_indices) & datosprob_filtrados$error[match_indices] == "ALLELE_MISMATCH"]
-  datos$A2[!is.na(match_indices) & datosprob_filtrados$error[match_indices] == "ALLELE_MISMATCH"] <- temporal
-  datos$OR <- as.numeric(datos$OR)
-  #datos$OR[!is.na(match_indices) & datosprob_filtrados$error[match_indices] == "ALLELE_MISMATCH"] <- 1/(datos$OR[!is.na(match_indices) & datosprob_filtrados$error[match_indices] == "ALLELE_MISMATCH"])
-
-  #datos$OR <- ifelse(!is.na(match_indices) & datosprob_filtrados$error[match_indices] == "ALLELE_MISMATCH", 1/datos$OR, datos$OR)
-
-  # Escribir datos en archivo
+  
+  # Se filtran los datosprob que tengan el error ALLELE_MISMATCH, descartando asi los BAD_ES/BAD_SE
+  datosprob_filtrado <- datosprob[datosprob$error == "ALLELE_MISMATCH", ]
+  
+  # Se extrae el CHR y BP de cada SNP en datosprob_filtrado
+  partes_prob <- strsplit(as.character(datosprob_filtrado$SNP), ":")
+  chr_prob <- sapply(partes_prob, "[", 1)
+  bp_prob <- sapply(partes_prob, "[", 2)
+  
+  # Se crea el indice para cada coincidencia
+  indice_datos <- paste0("chr", datos$CHR) %in% chr_prob & datos$BP %in% bp_prob
+  
+  # Se intercambian A1 y A2 en esos indices
+  temp <- datos$A2[indice_datos]
+  datos$A2[indice_datos] <- datos$A1[indice_datos]
+  datos$A1[indice_datos] <- temp
+  
+  # Se invierte la OR. Se convierte a numerico porque en el set de datos no lo es y devuelve error al invertirla. Otra posible solucion era añadir la columna odds_ratio no harmonizada porque es la inversa a la hm_odds_ratio, y que en las coincidencias la OR se reemplazase por la odds_ratio no harmonizada
+  indice_or <- indice_datos & !is.na(datos$OR)
+  datos$OR[indice_or] <- 1/as.numeric(datos$OR[indice_or])
+  
   write.table(datos, file = paste0(out, ".txt"), sep = "\t", quote = FALSE, row.names = FALSE)
-  cat("► SNP corregidos\n")
-
 }
 
 
- 
+
 
 mover <- function(datos, out){
-    # Lectura de datos desde el archivo
     # El vector de las subopciones se separa
     columnas_seleccionadas <- unlist(strsplit("SNP CHR BP A1 A2 OR P SE", " "))
 
@@ -212,9 +210,8 @@ mover <- function(datos, out){
 
 
 
-####
 # Llamada a funciones
-####
+
 
 # Nota: datos se carga tantas veces como se necesite después, si solo se cargase una vez se seguiría trabajando con el mismo set para cada función
 datos <- read.table(target, header = TRUE, sep = "\t", stringsAsFactors = FALSE, colClasses = "character")
@@ -239,7 +236,6 @@ meta_analizar(base, out)
 
 datosprob <- read.table(paste0(out, ".prob"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, colClasses = "character")
 
-
 datosbase <- read.table(base, header = TRUE, sep = "", stringsAsFactors = FALSE, colClasses = "character", check.names=FALSE)
 
 datos <- read.table(paste0(out,".txt"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, colClasses = "character")
@@ -249,4 +245,5 @@ datosprob <- read.table(paste0(out, ".prob"), header = TRUE, sep = "\t", strings
 arreglar(datos, datosprob, out, datosbase)
 
 datos <- read.table(paste0(out,".txt"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, colClasses = "character")
+
 mover(datos,out)
