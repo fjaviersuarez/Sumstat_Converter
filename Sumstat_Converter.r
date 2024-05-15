@@ -1,6 +1,17 @@
 #!/usr/bin/env Rscript
 
 
+
+# SCRIPT: Sumstat_Converter
+# AUTOR: Francisco Javier Suárez López (fjaviersuarez@correo.ugr.es), Universidad de Granada.
+# VERSION: 1.0 (VERSION FINAL)
+# ULTIMA MODIFICACION: 15/05/2024 (DD/MM/YYYY)
+# DESCRIPCION: Sumstat_Converter es un programa para la conversion automatica de archivos harmonizados de NHGRI-EBI GWAS Catalogue para poder ser utilizados en PRSice-2: Polygenic Risk Score Software for Biobank-Scale Data.
+
+
+
+
+
 # Unicamente para el help y sus colores
 colorear <- function(texto, color) {
   lista_colores <- c(
@@ -83,17 +94,14 @@ if(is.null(target)){
 
 # Esta función es para seleccionar unicamente las columnas necesarias de todas las descargadas del GWAS Catalog
 editar <- function(datos, out){
-  colorear(nombre, "rojo")
     # Lectura de datos desde el archivo
-    # El vector de las subopciones se separa
-    columnas_seleccionadas <- unlist(strsplit("hm_chrom hm_variant_id hm_pos hm_effect_allele hm_odds_ratio standard_error p_value hm_other_allele", " "))
-    if (!all(columnas_seleccionadas %in% colnames(datos))) {
+    columnas_seleccionadas <- unlist(strsplit("hm_chrom hm_variant_id hm_pos hm_effect_allele hm_odds_ratio standard_error p_value hm_other_allele", " ")) # Esto sirve para separar el vector con las columnas que se proporcionan y, ademas, es lo que establece el orden. Si quieres usar otras columnas u otro orden cambialo aqui (ten en cuenta que debes tambien ajustar las funciones siguientes de renombre)
+    if (!all(columnas_seleccionadas %in% colnames(datos))) { # Si no estan todas las columnas necesarias devuelve error 
         stop("!! ERROR: No todas las columnas a seleccionar están presentes en los datos. Revisa los datos manualmente, faltan columnas")
     }
     # Se filtran todas las filas y las columnas seleccionadas
-    datos_filtrados <- datos[, columnas_seleccionadas, drop = FALSE]
+    datos_filtrados <- datos[, columnas_seleccionadas, drop = FALSE] # el formato es set_de_datos[filas,columnas,opciones], si en filas lo dejamos vacio las coge todas, y si en columnas ponemos el vector que tenemos solamente va a guardar las columnas que coincidan con este vector
     # Se actualiza
-
     write.table(datos_filtrados, file = paste0(out, ".txt"), sep = "\t", quote = FALSE, row.names = FALSE)
 
     cat("\n\n\n► Columnas editadas\n")
@@ -118,7 +126,7 @@ renombrar <- function(datos, out){
 SNP <- function(datos, out){ 
     columnas_necesarias <- c("CHR", "BP", "A1", "A2")
     # Comprobaciones
-    if (!all(columnas_necesarias %in% colnames(datos))) {
+    if (!all(columnas_necesarias %in% colnames(datos))) { 
         columnas_faltan <- columnas_necesarias[!columnas_necesarias %in% colnames(datos)]
         stop(paste("!! ERROR: Faltan las siguientes columnas necesarias para SNP:", paste(columnas_faltan, collapse = ", ")))} # Para que sea más legible
     # Se actualiza la columna SNP o se crea si no existe, a partir de concatenar lo necesario
@@ -129,23 +137,8 @@ SNP <- function(datos, out){
     cat("► Columna SNP creada\n")
 }
 
-# Eliminar AT/TA/CG/GC
-limpiar2 <- function(datos, out) {
 
-    ORmiss <- sum(is.na(datos$OR))
-    SEmiss <- sum(is.na(datos$SE))
-   # ("OR NA: ", ORmiss)
-   # cat("\nSE NA: ", SEmiss)
-    datos_limpios <- datos[!is.na(datos$SE), ]
-    datos_limpios <- datos_limpios[!is.na(datos$OR), ]
-    datos_limpios <- datos_limpios[!is.na(datos$CHR), ]
-
-  write.table(datos_limpios, file = paste0(out, ".txt"), sep = "\t", quote = FALSE, row.names = FALSE)
-  cat("► Eliminados valores NA de SE/OR\n")
-
-}
-
-
+# Eliminar valores NA
 limpiar <- function(datos, out) {
     datos_sin_na <- na.omit(datos)
   write.table(datos_sin_na, file = paste0(out, ".txt"), sep = "\t", quote = FALSE, row.names = FALSE)
@@ -159,26 +152,26 @@ meta_analizar <- function(base, out){
 
 
 arreglar <- function(datos, datosprob, out, datosbase) {
-  # Como datosprob no tiene header se le añade
+  # Como datosprob no tiene header se le añade para poder filtrar
   colnames(datosprob) <- c("archivo", "SNP", "error")
   
   # Se filtran los datosprob que tengan el error ALLELE_MISMATCH, descartando asi los BAD_ES/BAD_SE
   datosprob_filtrado <- datosprob[datosprob$error == "ALLELE_MISMATCH", ]
   
   # Se extrae el CHR y BP de cada SNP en datosprob_filtrado
-  partes_prob <- strsplit(as.character(datosprob_filtrado$SNP), ":")
-  chr_prob <- sapply(partes_prob, "[", 1)
+  partes_prob <- strsplit(as.character(datosprob_filtrado$SNP), ":") # strsplit separa un string en base a un delimitador (: porque los SNP tienen ese formato, CHR:BP:A1:A2, si es _ se sustituye a este nivel de código)
+  chr_prob <- sapply(partes_prob, "[", 1) # sapply sirve para aplicar una funcion a todos los elementos de un vector y devuelve otro vector, el corchete y el 1 indican que acceda al primer elemento, o sea, al cromosoma para guardarlo en el vector chr_prob
   bp_prob <- sapply(partes_prob, "[", 2)
   
   # Se crea el indice para cada coincidencia
-  indice_datos <- paste0("chr", datos$CHR) %in% chr_prob & datos$BP %in% bp_prob
+  indice_datos <- paste0("chr", datos$CHR) %in% chr_prob & datos$BP %in% bp_prob # indice_datos es booleano! será TRUE si el cromosoma y el BP de datos se encuentra en datosprob: asi aseguramos que ese SNP en concreto se encuentre alli. No lo hacemos buscando directamente por SNP porque el formato puede estar intercambado
   
   # Se intercambian A1 y A2 en esos indices
-  temp <- datos$A2[indice_datos]
+  temp <- datos$A2[indice_datos] # Los datos que cumplan la condicion de arriba (TRUE) van a reemplazarse guardando el A2 en una variable temporal para no perderlo (si cambiamos A1 --> A2 sin haberlo guardado habremos perdido esa informacion y ahora tendremos dos columnas A1)
   datos$A2[indice_datos] <- datos$A1[indice_datos]
   datos$A1[indice_datos] <- temp
   
-  # Se invierte la OR. Se convierte a numerico porque en el set de datos no lo es y devuelve error al invertirla. Otra posible solucion era añadir la columna odds_ratio no harmonizada porque es la inversa a la hm_odds_ratio, y que en las coincidencias la OR se reemplazase por la odds_ratio no harmonizada
+  # Se invierte la OR. Se convierte a numerico porque en el set de datos no lo es y devuelve error al invertirla (1/string = error). Otra posible solucion era añadir la columna odds_ratio no harmonizada porque es la inversa a la hm_odds_ratio, y que en las coincidencias la OR se reemplazase por la odds_ratio no harmonizada
   indice_or <- indice_datos & !is.na(datos$OR)
   datos$OR[indice_or] <- 1/as.numeric(datos$OR[indice_or])
   
@@ -201,7 +194,7 @@ mover <- function(datos, out){
     cat("► Columnas reordenadas\n")
 
 
-
+    # Esta linea facilita encontrar el fichero generado entre todos los que se generan y evita obligar a hacer ls ni escribir para encontrarlo: se copia y se pega
     cat("► Programa finalizado. Se ha generado el siguiente fichero .txt: ",paste0(out,".txt"),"\n\n")
 
 }
@@ -214,6 +207,9 @@ mover <- function(datos, out){
 
 
 # Nota: datos se carga tantas veces como se necesite después, si solo se cargase una vez se seguiría trabajando con el mismo set para cada función
+colorear(nombre, "rojo")
+
+
 datos <- read.table(target, header = TRUE, sep = "\t", stringsAsFactors = FALSE, colClasses = "character")
 
 editar(datos, out)
