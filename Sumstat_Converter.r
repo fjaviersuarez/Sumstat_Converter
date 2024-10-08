@@ -48,7 +48,7 @@ help_color <- function() {
   cat("--target corresponde al fichero de GWAS Catalog ya descomprimido (con gunzip)\n")
   cat("--out corresponde a la salida SIN EXTENSION, el script ya le coloca la salida necesaria a cada archivo (.log, .prob y .meta para los resultados del meta analisis, y .txt para el archivo final de salida generado con los SNP y fichero, ambos corregidos)\n")
   cat("--nohla es una opcion adicional que permite eliminar el HLA (chr6, bp >20M <40M), en caso de especificarse la opcion. Si no se escribe, incluye en HLA los analisis. No requiere de argumento (basta con escribir --nohla)\n")
-  cat("--build37 es una opcion adicional que permite incluir la columna de la posicion en build 37. Para evitar hacer un Liftover, es necesario que exista un archivo harmonizado en build 37. Esta opcion requiere de un argumento (el archivo harmonizado en build 37)\n\n")
+  cat("--pos37 es una opcion adicional que permite incluir la columna de la posicion en build 37. Para evitar hacer un Liftover, es necesario que exista un archivo harmonizado en build 37. Esta opcion requiere de un argumento (el archivo harmonizado en build 37)\n\n")
 
   colorear("► En caso de dudas, sugerencias o errores, por favor --> fjaviersuarez@correo.ugr.es\n", "rosa") 
 }
