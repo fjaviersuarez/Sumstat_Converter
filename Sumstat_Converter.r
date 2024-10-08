@@ -4,8 +4,8 @@
 
 # SCRIPT: Sumstat_Converter
 # AUTOR: Francisco Javier Suarez Lopez (fjaviersuarez@correo.ugr.es), Universidad de Granada.
-# VERSION: 1.1 (Nota: anadida opcion --nohla para eliminar el HLA de los analisis)
-# ULTIMA MODIFICACION: 9/07/2024 (DD/MM/YYYY)
+# VERSION: 1.2 (Nota: anadida una opcion para incluir la posicion en build 37. Ahora mantiene el rsID)
+# ULTIMA MODIFICACION: 5/10/2024 (DD/MM/YYYY)
 # DESCRIPCION: Sumstat_Converter es un programa para la conversion automatica de archivos harmonizados de NHGRI-EBI GWAS Catalogue para poder ser utilizados en PRSice-2: Polygenic Risk Score Software for Biobank-Scale Data.
 
 
@@ -44,12 +44,13 @@ help_color <- function() {
   cat("Rscript Sumstat_Converter.r --base ENFERMEDAD.assoc.logistic --target ENFERMEDAD_GWASCATALOG.txt --out SALIDA\n")
   colorear(" * Argumentos:\n", "azul") 
 
-  cat("--base: corresponde al fichero .assoc.logistic de la enfermedad que va a ser usado por el script como base para reescribir los archivos\n")
+  cat("--base corresponde al fichero .assoc.logistic de la enfermedad que va a ser usado por el script como base para reescribir los archivos\n")
   cat("--target corresponde al fichero de GWAS Catalog ya descomprimido (con gunzip)\n")
-  cat("--out corresponde a la salida SIN EXTENSIoN, el script ya le coloca la salida necesaria a cada archivo (.log, .prob y .meta para los resultados del meta analisis, y .txt para el archivo final de salida generado con los SNP y fichero, ambos corregidos)\n")
-  cat("--nohla es una opcion adicional que permite eliminar el HLA (chr6, bp >20M <40M), en caso de especificarse la opcion. Si no se hace, lo incluye en los analisis\n\n")
+  cat("--out corresponde a la salida SIN EXTENSION, el script ya le coloca la salida necesaria a cada archivo (.log, .prob y .meta para los resultados del meta analisis, y .txt para el archivo final de salida generado con los SNP y fichero, ambos corregidos)\n")
+  cat("--nohla es una opcion adicional que permite eliminar el HLA (chr6, bp >20M <40M), en caso de especificarse la opcion. Si no se escribe, incluye en HLA los analisis. No requiere de argumento (basta con escribir --nohla)\n")
+  cat("--build37 es una opcion adicional que permite incluir la columna de la posicion en build 37. Para evitar hacer un Liftover, es necesario que exista un archivo harmonizado en build 37. Esta opcion requiere de un argumento (el archivo harmonizado en build 37)\n\n")
 
-  colorear("Dudas, sugerencias o errores, por favor --> fjaviersuarez@correo.ugr.es\n", "rosa") 
+  colorear("► En caso de dudas, sugerencias o errores, por favor --> fjaviersuarez@correo.ugr.es\n", "rosa") 
 }
 
 
@@ -63,6 +64,8 @@ base <- NULL
 out <- NULL
 target <- NULL
 HLA_switch <- FALSE
+pos37_switch <- FALSE
+pos37_archivo <- NULL
 
 for (i in 1:length(args)){
     # Verifica cada comando y que justo despues del comando haya algo (que se le da un argumento)
@@ -77,6 +80,9 @@ for (i in 1:length(args)){
     q(save = "no")
     }else if(args[i] == "--nohla"){
     HLA_switch <- TRUE
+    }else if(args[i] == "--pos37" && !is.null(args[i+1])){
+    pos37_switch <- TRUE
+    pos37_archivo <- args[i+1]
     }
 
 }
@@ -99,7 +105,7 @@ if(is.null(target)){
 # Esta funcion es para seleccionar unicamente las columnas necesarias de todas las descargadas del GWAS Catalog
 editar <- function(datos, out){
     # Lectura de datos desde el archivo
-    columnas_seleccionadas <- unlist(strsplit("hm_chrom hm_variant_id hm_pos hm_effect_allele hm_odds_ratio standard_error p_value hm_other_allele", " ")) # Esto sirve para separar el vector con las columnas que se proporcionan y, ademas, es lo que establece el orden. Si quieres usar otras columnas u otro orden cambialo aqui (ten en cuenta que debes tambien ajustar las funciones siguientes de renombre)
+    columnas_seleccionadas <- unlist(strsplit("hm_chrom hm_variant_id hm_pos hm_effect_allele hm_odds_ratio standard_error p_value hm_other_allele hm_rsid", " ")) # Esto sirve para separar el vector con las columnas que se proporcionan y, ademas, es lo que establece el orden. Si quieres usar otras columnas u otro orden cambialo aqui (ten en cuenta que debes tambien ajustar las funciones siguientes de renombre)
     if (!all(columnas_seleccionadas %in% colnames(datos))) { # Si no estan todas las columnas necesarias devuelve error 
         stop("!! ERROR: No todas las columnas a seleccionar estan presentes en los datos. Revisa los datos manualmente, faltan columnas")
     }
@@ -113,7 +119,7 @@ editar <- function(datos, out){
 
 # Esta funcion es para renombrar las columnas editadas anteriormente
 renombrar <- function(datos, out){
-    nuevos_nombres <- strsplit("CHR SNP BP A1 OR SE P A2", " ")[[1]]
+    nuevos_nombres <- strsplit("CHR SNP BP A1 OR SE P A2 ID", " ")[[1]]
     # Comprobaciones de columnas
     if (length(nuevos_nombres) != ncol(datos)) {
         stop(paste("!! ERROR: No coinciden en cantidad las columnas a introducir (", length(nuevos_nombres), " columnas) con las del archivo (", ncol(datos), " columnas), revisa posibles errores en el edit", sep = ""))
@@ -149,13 +155,13 @@ limpiar <- function(datos, out) {
 }
 
 
-
+# Funcion para hacer el meta-analisis con plink1.9, el objetivo es generar un archivo .prob donde se encuentren los SNPs cuyos alelos esten mal y deban ser invertidos
 meta_analizar <- function(base, out){
-    system(paste("plink1.9 --meta-analysis", paste0(out,".txt"),base, "--out", out)) # System permite que el programa "escriba" por pantalla y si le damos la misma sintaxis que para plink1.9 o cualquier otro script, va a funcionar igual. Vease EasyPRS.r que funciona igual para otro ejemplo
+    system(paste("plink1.9 --meta-analysis", paste0(out,".txt"),base, "--out", out)) # System permite que el programa "escriba" por pantalla y si le damos la misma sintaxis que para plink1.9 o cualquier otro script, va a funcionar igual
     cat("► Meta-analisis finalizado\n")
 }
 
-
+# Esta funcion es para arreglar el problema de los alelos (ALLELE MISMATCH al hacer un meta analisis con plink1.9, resumidamente los alelos estan intercambiados)
 arreglar <- function(datos, datosprob, out, datosbase) {
   # Como datosprob no tiene header se le anade para poder filtrar
   colnames(datosprob) <- c("archivo", "SNP", "error")
@@ -185,17 +191,20 @@ arreglar <- function(datos, datosprob, out, datosbase) {
 
 }
 
-
+# Esta funcion es para eliminar el HLA de los analisis
 noHLA <- function(datos, out){
+  
+  # Separamos cada SNP en partes para obtener la posicion / se hace directamente con la posicion
   partes_snp <- strsplit(as.character(datos$SNP), ":") 
   chr_snp <- sapply(partes_snp, "[", 1)
   bp_snp <- sapply(partes_snp, "[", 2)
 
   bp_snp <- as.numeric(bp_snp)
 
+  # Filtro para mantener los SNPs que o bien no sean del chr6, o bien lo sean pero esten fuera del HLA
+  indice_datos <-  (chr_snp != "chr6") | (chr_snp == "chr6" & (bp_snp < 20000000 | bp_snp > 40000000)) 
 
-  indice_datos <-  (chr_snp != "chr6") | (chr_snp == "chr6" & (bp_snp < 20000000 | bp_snp > 40000000)) # FIltro para los SNPs que o bien no sean el chr6, o bien lo sean pero esten fuera del HLA
-
+  # Al guardar solo los SNPs que cumplen esa condicion, se borran los del HLA
   datos_sin_HLA <- datos[indice_datos,]
 
   write.table(datos_sin_HLA, file = paste0(out, ".txt"), sep = "\t", quote = FALSE, row.names = FALSE)
@@ -205,24 +214,58 @@ noHLA <- function(datos, out){
 
 }
 
-
+# Esta funcion es para adaptar el formato de columnas al requerido (segun si hay o no columna en build 37)
 mover <- function(datos, out){
+  if(pos37_switch){
     # El vector de las subopciones se separa
-    columnas_seleccionadas <- unlist(strsplit("SNP CHR BP A1 A2 OR P SE", " "))
-
+    columnas_seleccionadas <- unlist(strsplit("SNP CHR BP BP_37 A1 A2 OR P SE ID", " "))
+    
     # Se filtran todas las filas y las columnas seleccionadas
     datos_filtrados <- datos[, columnas_seleccionadas, drop = FALSE]
     # Se actualiza
-
+    
     write.table(datos_filtrados, file = paste0(out, ".txt"), sep = "\t", quote = FALSE, row.names = FALSE)
-
+    
     cat("► Columnas reordenadas\n")
-
-
+    
+    
     # Esta linea facilita encontrar el fichero generado entre todos los que se generan y evita obligar a hacer ls ni escribir para encontrarlo: se copia y se pega
     cat("► Programa finalizado. Se ha generado el siguiente fichero .txt: ",paste0(out,".txt"),"\n\n")
+    
+    
+  }else{
+    columnas_seleccionadas <- unlist(strsplit("SNP CHR BP A1 A2 OR P SE ID", " "))
+    
+    datos_filtrados <- datos[, columnas_seleccionadas, drop = FALSE]
+
+    write.table(datos_filtrados, file = paste0(out, ".txt"), sep = "\t", quote = FALSE, row.names = FALSE)
+    
+    cat("► Columnas reordenadas\n")
+    
+    cat("► Programa finalizado. Se ha generado el siguiente fichero .txt: ",paste0(out,".txt"),"\n\n")
+    
+    
+  }
 
 }
+
+# Esta funcion nos permite anadir la columna de posicion en build 37 que ya existia en los datos armonizados en build 37, para asi evitar tener que hacer un Liftover. La columnas de ese archivo deben llamarse variant_id y base_pair_location (es lo mas comun que he encontrado)
+anadir_pos37 <- function(datos, out, datos37){
+  
+  # Se seleccionan las dos columnas de interes
+  columna_37_con_rsid <- datos37[, c("base_pair_location", "variant_id")]
+  
+  # Se actualizan sus headers para poder fusionarlos segun el ID y asi tener el nombre del BP en build 37 ya actualizado
+  colnames(columna_37_con_rsid) <- c("BP_37", "ID")
+  
+  # Se fusionan ambos dataframes usando como clave la columna rsID porque es comun, asi las posiciones iran al SNP que corresponden
+  datos_con_col37 <- merge(datos, columna_37_con_rsid, by = "ID")
+  write.table(datos_con_col37, file = paste0(out, ".txt"), sep = "\t", quote = FALSE, row.names = FALSE)
+  cat("► Columna de posicion en build 37 incluida\n")
+  
+  
+}
+
 
 
 
@@ -268,6 +311,17 @@ arreglar(datos, datosprob, out, datosbase)
 datos <- read.table(paste0(out,".txt"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, colClasses = "character")
 
 if(HLA_switch) noHLA(datos,out)
+
+datos <- read.table(paste0(out,".txt"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, colClasses = "character")
+
+if(pos37_switch){
+  if(is.null(pos37_archivo)){
+    stop("! Advertencia: Has incluido la opcion --pos37 pero no has indicado donde esta ese fichero")
+  }else{
+    datos37 <- read.table(pos37_archivo, header = TRUE, sep = "\t", stringsAsFactors = FALSE, colClasses = "character")
+    anadir_pos37(datos, out, datos37)
+  }
+}
 
 datos <- read.table(paste0(out,".txt"), header = TRUE, sep = "\t", stringsAsFactors = FALSE, colClasses = "character")
 
